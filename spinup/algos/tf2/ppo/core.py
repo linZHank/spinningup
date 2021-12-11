@@ -12,15 +12,13 @@ def combined_shape(length, shape=None):
         return (length,)
     return (length, shape) if np.isscalar(shape) else (length, *shape)
 
-
-def mlp(sizes, activation, output_activation=nn.Identity):
-    layers = []
-    for j in range(len(sizes)-1):
-        act = activation if j < len(sizes)-2 else output_activation
-        layers += [nn.Linear(sizes[j], sizes[j+1]), act()]
-    return nn.Sequential(*layers)
-
-
+def mlp(sizes, activation='relu', output_activation='linear'):
+    model = tf.keras.Sequential()
+    model.add(tf.keras.Input(sizes[0]))
+    for i in range(1, len(sizes)-1):
+        model.add(tf.keras.layers.Dense(sizes[i], activation=activation))
+    model.add(tf.keras.layers.Dense(sizes[-1], activation=output_activation))
+    return model
 
 def count_vars(module):
     return sum([np.prod(p.shape) for p in module.parameters()])
