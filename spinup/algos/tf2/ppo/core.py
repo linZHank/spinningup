@@ -42,8 +42,7 @@ def discount_cumsum(x, discount):
     return scipy.signal.lfilter([1], [1, float(-discount)], x[::-1], axis=0)[::-1]
 
 
-class Actor(nn.Module):
-
+class Actor(tf.keras.Model):
     def _distribution(self, obs):
         raise NotImplementedError
 
@@ -60,7 +59,6 @@ class Actor(nn.Module):
             logp_a = self._log_prob_from_distribution(pi, act)
         return pi, logp_a
 
-
 class MLPCategoricalActor(Actor):
     
     def __init__(self, obs_dim, act_dim, hidden_sizes, activation):
@@ -69,29 +67,27 @@ class MLPCategoricalActor(Actor):
 
     def _distribution(self, obs):
         logits = self.logits_net(obs)
-        return Categorical(logits=logits)
+        return tfd.Categorical(logits=logits)
 
     def _log_prob_from_distribution(self, pi, act):
         return pi.log_prob(act)
-
 
 class MLPGaussianActor(Actor):
 
     def __init__(self, obs_dim, act_dim, hidden_sizes, activation):
         super().__init__()
-        log_std = -0.5 * np.ones(act_dim, dtype=np.float32)
-        self.log_std = torch.nn.Parameter(torch.as_tensor(log_std))
+        self.log_std = tf.Variable(initial_value=-0.5*tf.ones(act_dim, dtype=np.float32))
         self.mu_net = mlp([obs_dim] + list(hidden_sizes) + [act_dim], activation)
 
     def _distribution(self, obs):
         mu = self.mu_net(obs)
-        std = torch.exp(self.log_std)
-        return Normal(mu, std)
+        std = tf.math.exp(self.log_std)
+        return tfd.Normal(loc=mu, scale=std)
 
     def _log_prob_from_distribution(self, pi, act):
         return pi.log_prob(act).sum(axis=-1)    # Last axis sum needed for Torch Normal distribution
 
-
+    
 class MLPCritic(nn.Module):
 
     def __init__(self, obs_dim, hidden_sizes, activation):
